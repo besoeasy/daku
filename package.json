@@ -1,0 +1,50 @@
+{
+  "name": "daku",
+  "version": "0.0.1",
+  "description": "Leave no trace. Just authenticate.",
+  "homepage": "https://github.com/besoeasy/daku#readme",
+  "keywords": [
+    "authentication",
+    "anonymous",
+    "privacy",
+    "passwordless",
+    "no-email",
+    "cryptographic",
+    "signature",
+    "secp256k1",
+    "proof-of-work",
+    "pow",
+    "spam-protection",
+    "login",
+    "auth",
+    "crypto",
+    "keypair",
+    "bitcoin",
+    "ethereum",
+    "web3",
+    "zero-knowledge",
+    "gdpr",
+    "no-pii",
+    "anonymous-auth",
+    "private-auth",
+    "ghost"
+  ],
+  "bugs": {
+    "url": "https://github.com/besoeasy/daku/issues"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/besoeasy/daku.git"
+  },
+  "dependencies": {
+    "@noble/hashes": "^1.8.0",
+    "@noble/secp256k1": "^2.3.0"
+  },
+  "license": "ISC",
+  "author": "besoeasy",
+  "type": "module",
+  "main": "index.js",
+  "scripts": {
+    "test": "node test.js"
+  }
+}
