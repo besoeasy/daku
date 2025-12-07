@@ -1,4 +1,4 @@
-# daku
+# DAKU
 
 > Leave no trace. Just authenticate.
 
