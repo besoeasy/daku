@@ -2,17 +2,20 @@
 
 > Leave no trace. Just authenticate.
 
-Cryptographic authentication library with built-in proof-of-work spam protection. No emails, no passwords, no personal data.
+DAKU (spelled DAA KU) — Punjabi for "bandits" — inspired the library's name. Historically, bandits operated anonymously and often used masks to hide their identity; this project adopts that privacy-first ethos by offering anonymous, cryptographic authentication without personal data.
 
-## About the Name
+DAKU is a lightweight cryptographic authentication library that provides built-in proof-of-work (POW) spam protection. It requires no emails, no passwords, and no personally identifiable information — instead users authenticate with a secp256k1 keypair (a privateKey and a derived publicKey). Auth tokens include a timestamp, nonce, signature, and POW, and expire by default after 1 minute.
 
-DAKU (spelled DAA KU) stands for "bandits" in the Punjabi language. This name is inspired by how bandits were anonymous and always wore masks to hide their identity, reflecting the library's focus on privacy and anonymity in authentication.
+## Global Identity — One Private Key, Multiple Projects
 
-## Global Identity
+You can reuse a single DAKU privateKey across multiple projects to act as a global unique identifier. Since the publicKey is deterministically derived from the privateKey, the same publicKey serves as a consistent user fingerprint across different apps and services. This approach lets you: 
 
-A single DAKU privateKey can be shared across multiple projects, serving as a global unique identifier. This provides a consistent user fingerprint that works seamlessly across different applications and services, enabling cross-project authentication without requiring separate accounts or personal data.
+- Enable cross-project authentication without separate accounts or PII
+- Maintain portability and a consistent user identity across apps
 
-Since the publicKey is derived from the privateKey, it remains the same across all projects, allowing for unified user recognition while maintaining privacy and anonymity.
+Important: reusing the same privateKey links your identity between services, which may be desirable (single identity) or undesired (linkability). Keep your privateKey secure — store it safely (e.g., secure storage or hardware wallet) and never share it publicly. If you need per-app separation, generate or derive app-specific keys instead.
+
+Security notes: Tokens are short-lived and POW difficulty is configurable (default: 2 leading zeros) to reduce abuse; adjust as needed for your application.
 
 ## Installation
 
