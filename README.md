@@ -4,6 +4,16 @@
 
 Cryptographic authentication library with built-in proof-of-work spam protection. No emails, no passwords, no personal data.
 
+## About the Name
+
+DAKU (spelled DAA KU) stands for "bandits" in the Punjabi language. This name is inspired by how bandits were anonymous and always wore masks to hide their identity, reflecting the library's focus on privacy and anonymity in authentication.
+
+## Global Identity
+
+A single DAKU privateKey can be shared across multiple projects, serving as a global unique identifier. This provides a consistent user fingerprint that works seamlessly across different applications and services, enabling cross-project authentication without requiring separate accounts or personal data.
+
+Since the publicKey is derived from the privateKey, it remains the same across all projects, allowing for unified user recognition while maintaining privacy and anonymity.
+
 ## Installation
 
 ```bash
