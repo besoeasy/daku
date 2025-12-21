@@ -133,6 +133,7 @@ import {
   verify, // verify(message, signatureData, publicKey, pow = 2) -> boolean
   generateKeyPair, // generateKeyPair() -> { privateKey, publicKey }
   getPublicKey, // getPublicKey(privateKey) -> publicKey string
+  getUsername, // getUsername(publicKey) -> human-readable username string
   sha256, // sha256(message) -> Uint8Array
 } from "daku";
 
@@ -140,4 +141,44 @@ import {
 const { privateKey } = generateKeyPair();
 const token = await createAuth(privateKey);
 const publicKey = await verifyAuth(token);
+```
+
+### getUsername - Convert Public Key to Human-Readable Username
+
+Since public keys are long hexadecimal strings (like `03a1b2c3...`), they're not user-friendly for display. The `getUsername()` function converts any public key into a memorable, readable username.
+
+```javascript
+import { getUsername, generateKeyPair } from "daku";
+
+const { publicKey } = generateKeyPair();
+const username = await getUsername(publicKey);
+// Returns something like: "happy-ocean-flows-1234"
+```
+
+**How it works:**
+- Takes a public key as input
+- Uses SHA-256 hash to deterministically generate a username
+- Same public key **always** produces the same username
+- Format: `adjective-noun-verb-number` (e.g., "brave-tiger-soars-4567")
+
+**Why use it:**
+- Display usernames in your UI instead of long hex strings
+- Create consistent, recognizable identities for users
+- No database needed - the username is derived from the public key itself
+
+> [!IMPORTANT]
+> **DAKU is designed to keep users anonymous.** You should **never ask users to create a username**. Let `getUsername()` automatically generate one from their public key and display it in your UI. Since you identify users by their public key (not username), it doesn't matter if two users happen to have the same username - each public key is cryptographically unique.
+
+> [!IMPORTANT]
+> **Never store usernames in your database.** Since the same public key always generates the same username, you can regenerate it on-the-fly by calling `getUsername(publicKey)` whenever needed. Store only the public key as your user identifier.
+
+**Example in a real app:**
+```javascript
+app.post("/api/protected", daku(), async (req, res) => {
+  const username = await getUsername(req.userId);
+  res.json({
+    message: `Welcome, ${username}!`,
+    userId: req.userId, // Always use publicKey as unique ID, not username
+  });
+});
 ```
