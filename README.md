@@ -1,21 +1,45 @@
 # DAKU
 
-> Leave no trace. Just authenticate.
+> **Anonymous authentication. Zero personal data.**
 
-DAKU (spelled DAA KU) — Punjabi for "bandits" — inspired the library's name. Historically, bandits operated anonymously and often used masks to hide their identity; this project adopts that privacy-first ethos by offering anonymous, cryptographic authentication without personal data.
+**DAKU** (pronounced _DAA KU_) means "bandits" in Punjabi. Historically, bandits operated anonymously, often using masks to hide their identity. This library adopts that privacy-first ethos—anonymous cryptographic authentication without personal data.
 
-DAKU is a lightweight cryptographic authentication library that provides built-in proof-of-work (POW) spam protection. It requires no emails, no passwords, and no personally identifiable information — instead users authenticate with a secp256k1 keypair (a privateKey and a derived publicKey). Auth tokens include a timestamp, nonce, signature, and POW, and expire by default after 1 minute.
+---
 
-## Global Identity — One Private Key, Multiple Projects
+## Why DAKU?
 
-You can reuse a single DAKU privateKey across multiple projects to act as a global unique identifier. Since the publicKey is deterministically derived from the privateKey, the same publicKey serves as a consistent user fingerprint across different apps and services. This approach lets you:
+**Stop storing passwords. Stop managing email verifications. Stop worrying about data breaches.**
 
-- Enable cross-project authentication without separate accounts or PII
-- Maintain portability and a consistent user identity across apps
+DAKU is a simpler approach to user authentication that keeps both you and your users anonymous. No databases of usernames, no password hashes to secure, no personal information to leak.
 
-Important: reusing the same privateKey links your identity between services, which may be desirable (single identity) or undesired (linkability). Keep your privateKey secure — store it safely (e.g., secure storage or hardware wallet) and never share it publicly. If you need per-app separation, generate or derive app-specific keys instead.
+```javascript
+// Traditional auth: Store emails, hash passwords, manage resets...
+// DAKU: Just verify cryptographic signatures ✨
+const publicKey = await verifyAuth(token);
+```
 
-Security notes: Tokens are short-lived and POW difficulty is configurable (default: 2 leading zeros) to reduce abuse; adjust as needed for your application.
+### The Problem with Traditional Auth
+
+Every traditional authentication system carries risk:
+
+- **Passwords**: Users reuse them, forget them, get them stolen
+- **Email/Phone**: Requires collecting personal data (GDPR, privacy laws)
+- **Databases**: Honeypots for hackers; one breach exposes everything
+- **Identity**: Your users leave traces everywhere they sign up
+
+### The DAKU Way
+
+Users authenticate with cryptographic keypairs—like Bitcoin wallets, but for your app:
+
+- **No signup forms**: Generate a keypair, start using your app
+- **No passwords**: Users never create or remember passwords
+- **No PII collection**: No emails, phones, or personal data
+- **Built-in spam protection**: Proof-of-work prevents abuse
+- **You stay clean**: Nothing sensitive to store, nothing to breach
+
+> DAKU uses **secp256k1** signatures (same as Bitcoin/Ethereum) with **proof-of-work** spam protection. Auth tokens expire in 1 minute. Users control their private keys, you just verify signatures.
+
+---
 
 ## Installation
 
@@ -25,160 +49,226 @@ npm install daku
 
 ## Quick Start
 
-### 1. Generate a Keypair
+```javascript
+import { generateKeyPair, createAuth, verifyAuth } from "daku";
+
+// 1. User generates keypair (client-side)
+const { privateKey, publicKey } = generateKeyPair();
+
+// 2. Create auth token (client-side)
+const token = await createAuth(privateKey);
+
+// 3. Verify auth (server-side)
+const publicKey = await verifyAuth(token);
+// ✅ Authenticated! publicKey is the unique user ID
+```
+
+---
+
+## Core Functions
+
+### `generateKeyPair()`
+
+**Create a new identity**
 
 ```javascript
-import { generateKeyPair } from "daku";
-
-// Generate once and store securely (localStorage, secure storage, etc.)
 const { privateKey, publicKey } = generateKeyPair();
 ```
 
-### 2. Client-Side: Create Authentication Request
+Generates a secp256k1 keypair. The **privateKey** stays with the user (never share it), the **publicKey** identifies them to your service.
+
+- Returns: `{ privateKey: string, publicKey: string }`
+- Use case: First-time users, account creation
+
+---
+
+### `getPublicKey(privateKey)`
+
+**Derive the public identity**
 
 ```javascript
-import { createAuth } from "daku";
-
-// Create authentication token (includes timestamp, nonce, signature, and POW)
-const token = await createAuth(privateKey);
-
-// Send to your server
-fetch("/api/login", {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    daku: token,
-  },
-});
+const publicKey = getPublicKey(privateKey);
 ```
 
-### 3. Server-Side: Verify Authentication
+Extract the public key from a private key. Useful when users return with their saved privateKey.
+
+- Returns: `publicKey` string
+- Deterministic: Same privateKey always produces same publicKey
+
+---
+
+### `getUsername(publicKey)`
+
+**Make public keys human-readable**
 
 ```javascript
-import { verifyAuth } from "daku";
+const username = await getUsername(publicKey);
+// → "happy-ocean-flows-1234"
+```
 
-const publicKey = await verifyAuth(req.headers["daku"]);
+Public keys are long hex strings. `getUsername()` converts them into memorable usernames for your UI.
 
+- Returns: Human-readable username string
+- Deterministic: Same publicKey always → same username
+- Format: `adjective-noun-verb-number`
+
+> [!IMPORTANT]  
+> **Never ask users to create usernames.** DAKU keeps users anonymous. Display the generated username in your UI, but always identify users by their **publicKey** in your database.
+
+---
+
+### `createAuth(privateKey, pow?)`
+
+**Generate authentication token**
+
+```javascript
+const token = await createAuth(privateKey, 2); // pow = difficulty
+```
+
+Creates a signed auth token with timestamp, nonce, signature, and proof-of-work. Send this to your server for verification.
+
+- Returns: Base64-encoded auth token
+- Default POW: 2 (adjust for spam protection)
+- Includes: timestamp, nonce, signature, proof-of-work
+
+---
+
+### `verifyAuth(token, pow?)`
+
+**Verify authentication token**
+
+```javascript
+const publicKey = await verifyAuth(token, 2);
 if (publicKey) {
-  // ✅ Authenticated! Use publicKey as unique user ID
-  console.log(`User ${publicKey} authenticated`);
+  // ✅ Valid! User authenticated
+  console.log(`User ${publicKey} logged in`);
 } else {
-  // ❌ Invalid or expired authentication
-  res.status(401).json({ error: "Unauthorized" });
+  // ❌ Invalid or expired
 }
 ```
 
-## ExpressJS Middleware
+Verifies the signature, proof-of-work, and timestamp (must be < 1 minute old). Returns the user's publicKey on success.
+
+- Returns: `publicKey` string or `null`
+- Checks: Signature validity, POW correctness, timestamp freshness
+- Token lifetime: 1 minute
+
+---
+
+### `sign(message, privateKey, pow?)`
+
+**Sign any message**
+
+```javascript
+const { signature, pow } = await sign("hello world", privateKey, 2);
+```
+
+Create a cryptographic signature for any message with proof-of-work. Lower-level function used by `createAuth()`.
+
+- Returns: `{ signature: string, pow: number }`
+- Use case: Custom message signing beyond authentication
+
+---
+
+### `verify(message, signatureData, publicKey, pow?)`
+
+**Verify any signature**
+
+```javascript
+const isValid = await verify("hello world", { signature, pow }, publicKey, 2);
+```
+
+Verify a message signature and proof-of-work. Lower-level function used by `verifyAuth()`.
+
+- Returns: `boolean`
+- Checks: Signature + POW validity
+
+---
+
+## Express.js Middleware
 
 ```javascript
 import express from "express";
-import { verifyAuth } from "daku";
+import { verifyAuth, getUsername } from "daku";
 
 const app = express();
 
-// Reusable authentication middleware
-const daku = (powDifficulty = 2) => {
-  return async (req, res, next) => {
+// Middleware: Verify DAKU auth
+const daku =
+  (powDifficulty = 2) =>
+  async (req, res, next) => {
     const token = req.headers["daku"];
-
-    if (!token) {
-      return res.status(401).json({ error: "Unauthorized" });
-    }
-
     const publicKey = await verifyAuth(token, powDifficulty);
 
     if (!publicKey) {
       return res.status(401).json({ error: "Unauthorized" });
     }
 
-    // Attach user's public key to request
-    req.userId = publicKey;
+    req.userId = publicKey; // Attach user ID
     next();
   };
-};
 
-// Use on protected routes
-app.post("/api/protected", daku(), (req, res) => {
+// Protected route
+app.post("/api/profile", daku(), async (req, res) => {
+  const username = await getUsername(req.userId);
   res.json({
-    message: "Access granted",
+    message: `Welcome, ${username}!`,
     userId: req.userId,
   });
-});
-
-// Use with custom POW difficulty
-app.post("/api/high-security", daku(4), (req, res) => {
-  res.json({ message: "High security endpoint" });
 });
 
 app.listen(3000);
 ```
 
-## Key Features
+---
 
-- **🕵️ Anonymous**: No email, phone, or personal data required
-- **🛡️ Spam Protection**: Built-in proof-of-work (default: 2 leading zeros)
-- **🔐 Secure**: secp256k1 cryptographic signatures (same as Bitcoin/Ethereum)
-- **⚡ Lightweight**: Minimal dependencies (@noble/secp256k1, @noble/hashes)
-- **🌐 Cross-Platform**: Works in Node.js and browsers
-- **⏱️ Time-Limited**: Auth requests expire after 1 minute
+## Key Benefits
 
-## API Reference
+| Traditional Auth                    | DAKU                                   |
+| ----------------------------------- | -------------------------------------- |
+| Manage passwords, hashes, resets    | No passwords—just verify signatures    |
+| Store emails/phones (PII)           | Zero personal data collected           |
+| User databases = security liability | Only store public keys (not sensitive) |
+| Slow authentication flows           | Instant cryptographic verification     |
+| GDPR compliance overhead            | No PII = simpler compliance            |
+| Spam = manual moderation/CAPTCHAs   | Built-in proof-of-work protection      |
 
-```javascript
-// Quick exports summary — simple overview of what the library exposes
-import {
-  createAuth, // createAuth(privateKey, pow = 2) -> string (base64 auth token)
-  verifyAuth, // verifyAuth(token, pow = 2) -> publicKey string | null
-  sign, // sign(message, privateKey, pow = 2) -> { signature, pow }
-  verify, // verify(message, signatureData, publicKey, pow = 2) -> boolean
-  generateKeyPair, // generateKeyPair() -> { privateKey, publicKey }
-  getPublicKey, // getPublicKey(privateKey) -> publicKey string
-  getUsername, // getUsername(publicKey) -> human-readable username string
-  sha256, // sha256(message) -> Uint8Array
-} from "daku";
+---
 
-// Example: create and verify a simple auth token
-const { privateKey } = generateKeyPair();
-const token = await createAuth(privateKey);
-const publicKey = await verifyAuth(token);
-```
+## Features
 
-### getUsername - Convert Public Key to Human-Readable Username
+- **🕵️ Anonymous**: No email, no phone, no personal data
+- **🔐 Secure**: secp256k1 signatures (Bitcoin/Ethereum-grade)
+- **🛡️ Spam-proof**: Configurable proof-of-work difficulty
+- **⚡ Lightweight**: Minimal dependencies, works everywhere
+- **🌐 Universal**: Node.js + Browser compatible
+- **⏱️ Short-lived tokens**: 1-minute expiration (anti-replay)
+- **🌍 Cross-project identity**: Reuse one keypair across apps
 
-Since public keys are long hexadecimal strings (like `03a1b2c3...`), they're not user-friendly for display. The `getUsername()` function converts any public key into a memorable, readable username.
+---
+
+## Global Identity
+
+Users can reuse **one private key** across multiple services. Same privateKey → same publicKey → same identity everywhere.
 
 ```javascript
-import { getUsername, generateKeyPair } from "daku";
-
-const { publicKey } = generateKeyPair();
-const username = await getUsername(publicKey);
-// Returns something like: "happy-ocean-flows-1234"
+// User's keypair works on yourapp.com AND anotherapp.com
+const publicKey = getPublicKey(samePrivateKey);
+// → Same publicKey = consistent cross-platform identity
 ```
 
-**How it works:**
-- Takes a public key as input
-- Uses SHA-256 hash to deterministically generate a username
-- Same public key **always** produces the same username
-- Format: `adjective-noun-verb-number` (e.g., "brave-tiger-soars-4567")
+> [!WARNING]  
+> Reusing keypairs links user identity across services. This enables seamless cross-app experiences but reduces anonymity between services. For per-app isolation, derive or generate separate keys.
 
-**Why use it:**
-- Display usernames in your UI instead of long hex strings
-- Create consistent, recognizable identities for users
-- No database needed - the username is derived from the public key itself
+---
 
-> [!IMPORTANT]
-> **DAKU is designed to keep users anonymous.** You should **never ask users to create a username**. Let `getUsername()` automatically generate one from their public key and display it in your UI. Since you identify users by their public key (not username), it doesn't matter if two users happen to have the same username - each public key is cryptographically unique.
+## Security Notes
 
-> [!IMPORTANT]
-> **Never store usernames in your database.** Since the same public key always generates the same username, you can regenerate it on-the-fly by calling `getUsername(publicKey)` whenever needed. Store only the public key as your user identifier.
+- **Private keys**: Users must store them securely (localStorage, hardware wallets). Lost keys = lost access.
+- **Token lifetime**: Hardcoded to 1 minute; prevent replay attacks.
+- **POW difficulty**: Default = 2 leading zeros. Increase for high-traffic endpoints (trade-off: slower auth).
+- **No server secrets**: DAKU has no shared secrets—everything is public-key cryptography.
 
-**Example in a real app:**
-```javascript
-app.post("/api/protected", daku(), async (req, res) => {
-  const username = await getUsername(req.userId);
-  res.json({
-    message: `Welcome, ${username}!`,
-    userId: req.userId, // Always use publicKey as unique ID, not username
-  });
-});
-```
+---
+
+**DAKU: The authentication system that doesn't know anything about your users. By design.**

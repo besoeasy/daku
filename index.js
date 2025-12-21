@@ -2,10 +2,11 @@
 import * as secp from "@noble/secp256k1";
 import { hmac } from "@noble/hashes/hmac";
 import { sha256 as nobleSha256 } from "@noble/hashes/sha2";
-import { generateAccountIdentifier } from './username.js';
+import { generateAccountIdentifier } from "./username.js";
 
 // Set up HMAC for secp256k1
-secp.etc.hmacSha256Sync = (key, ...msgs) => hmac(nobleSha256, key, secp.etc.concatBytes(...msgs));
+secp.etc.hmacSha256Sync = (key, ...msgs) =>
+  hmac(nobleSha256, key, secp.etc.concatBytes(...msgs));
 
 // Browser compatibility helper for TextEncoder
 async function getTextEncoder() {
@@ -20,12 +21,14 @@ async function getTextEncoder() {
 
 // Helper function to convert bytes to hex
 function bytesToHex(bytes) {
-  return Array.from(bytes, byte => byte.toString(16).padStart(2, '0')).join('');
+  return Array.from(bytes, (byte) => byte.toString(16).padStart(2, "0")).join(
+    ""
+  );
 }
 
 // Helper function to convert hex to bytes
 function hexToBytes(hex) {
-  return new Uint8Array(hex.match(/.{1,2}/g).map(byte => parseInt(byte, 16)));
+  return new Uint8Array(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
 }
 
 // Helper function to generate random bytes
@@ -48,7 +51,7 @@ function base64Encode(obj) {
   if (typeof window !== "undefined") {
     return btoa(json);
   } else {
-    return Buffer.from(json).toString('base64');
+    return Buffer.from(json).toString("base64");
   }
 }
 
@@ -57,7 +60,7 @@ function base64Decode(str) {
   if (typeof window !== "undefined") {
     return JSON.parse(atob(str));
   } else {
-    return JSON.parse(Buffer.from(str, 'base64').toString());
+    return JSON.parse(Buffer.from(str, "base64").toString());
   }
 }
 
@@ -101,12 +104,12 @@ export async function sha256(msg) {
 }
 
 // --- Proof of Work Helper ---
-async function solveProofOfWork(message, difficulty = 2) {
+async function solveProofOfWork(message, difficulty = 1) {
   if (difficulty < 1) {
     difficulty = 1; // Minimum POW is 1
   }
 
-  const target = '0'.repeat(difficulty);
+  const target = "0".repeat(difficulty);
   let nonce = 0;
 
   while (true) {
@@ -121,13 +124,13 @@ async function solveProofOfWork(message, difficulty = 2) {
 
     // Yield to event loop every 1000 attempts to avoid blocking
     if (nonce % 1000 === 0) {
-      await new Promise(resolve => setTimeout(resolve, 0));
+      await new Promise((resolve) => setTimeout(resolve, 0));
     }
   }
 }
 
 // --- Verify Proof of Work ---
-async function verifyProofOfWork(message, powNonce, difficulty = 2) {
+async function verifyProofOfWork(message, powNonce, difficulty = 1) {
   if (difficulty < 1) {
     difficulty = 1; // Minimum POW is 1
   }
@@ -136,7 +139,7 @@ async function verifyProofOfWork(message, powNonce, difficulty = 2) {
     return false;
   }
 
-  const target = '0'.repeat(difficulty);
+  const target = "0".repeat(difficulty);
   const combined = message + powNonce;
   const hash = await sha256(combined);
   const hexHash = bytesToHex(hash);
@@ -145,7 +148,7 @@ async function verifyProofOfWork(message, powNonce, difficulty = 2) {
 }
 
 // --- Sign Message ---
-export async function sign(message, privateKeyHex, pow = 2) {
+export async function sign(message, privateKeyHex, pow = 1) {
   // Enforce minimum POW of 1
   if (pow < 1) {
     pow = 1;
@@ -162,7 +165,7 @@ export async function sign(message, privateKeyHex, pow = 2) {
 }
 
 // --- Verify Signature ---
-export async function verify(message, signatureData, publicKeyHex, pow = 2) {
+export async function verify(message, signatureData, publicKeyHex, pow = 1) {
   try {
     // Enforce minimum POW of 1
     if (pow < 1) {
@@ -215,7 +218,7 @@ export async function createAuth(privateKeyHex, pow = 2) {
     pow: signatureData.pow,
     message,
     timestamp,
-    nonce
+    nonce,
   };
 
   return base64Encode(authPayload);
@@ -234,12 +237,18 @@ export async function verifyAuth(token, pow = 2) {
     const publicKeyHex = authData.publickey;
     const { signature, message, pow: powNonce } = authData;
 
-    if (!publicKeyHex || !signature || !message || powNonce === undefined || powNonce === null) {
+    if (
+      !publicKeyHex ||
+      !signature ||
+      !message ||
+      powNonce === undefined ||
+      powNonce === null
+    ) {
       return null;
     }
 
     // Extract timestamp from message
-    const timestamp = Number(message.split(':')[0]);
+    const timestamp = Number(message.split(":")[0]);
 
     // Check timestamp is within 1 minute
     const maxAgeMs = 1 * 60 * 1000; // Hardcoded to 1 minute
@@ -256,7 +265,6 @@ export async function verifyAuth(token, pow = 2) {
     }
 
     return publicKeyHex;
-
   } catch {
     return null;
   }
