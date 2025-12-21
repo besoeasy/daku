@@ -83,8 +83,8 @@ export function getPublicKey(privateKeyHex) {
 }
 
 // --- Account Username from Public Key ---
-export async function getUsername(publicKey) {
-  return await generateAccountIdentifier(publicKey);
+export function getUsername(publicKey) {
+  return generateAccountIdentifier(publicKey);
 }
 
 // --- Hashing (SHA-256) ---

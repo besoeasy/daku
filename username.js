@@ -8030,12 +8030,12 @@ const verbs = [
 
 import { sha256 as nobleSha256 } from "@noble/hashes/sha2";
 
-export async function generateAccountIdentifier(input) {
+export function generateAccountIdentifier(input) {
   // Convert input string to Uint8Array if it's a string
   const inputBytes = typeof input === 'string'
     ? new TextEncoder().encode(input)
     : input;
-  const hash = sha256(inputBytes);
+  const hash = nobleSha256(inputBytes);
 
   // Adjective: bytes 0-1 (16 bits = 0-65535)
   const adjIndex = ((hash[0] << 8) | hash[1]) >>> 0;
