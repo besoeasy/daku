@@ -269,3 +269,129 @@ export async function verifyAuth(token, pow = 2) {
     return null;
   }
 }
+
+// =============================================================================
+// E2E ENCRYPTION
+// =============================================================================
+
+// --- Derive Shared Secret (ECDH) ---
+export function deriveSharedSecret(myPrivateKeyHex, theirPublicKeyHex) {
+  const myPrivateKeyBytes = hexToBytes(myPrivateKeyHex);
+  const theirPublicKeyBytes = hexToBytes(theirPublicKeyHex);
+  const sharedPoint = secp.getSharedSecret(myPrivateKeyBytes, theirPublicKeyBytes);
+  // Hash the shared point to get a uniform 32-byte key
+  return bytesToHex(nobleSha256(sharedPoint));
+}
+
+// --- Encrypt Message (AES-256-GCM) ---
+export async function encrypt(plaintext, sharedSecretHex) {
+  const encoder = await getTextEncoder();
+  const plaintextBytes = encoder.encode(plaintext);
+  const keyBytes = hexToBytes(sharedSecretHex);
+  const iv = await randomBytes(12); // 96-bit IV for GCM
+
+  if (typeof window !== "undefined" && window.crypto) {
+    // Browser
+    const key = await window.crypto.subtle.importKey(
+      "raw",
+      keyBytes,
+      { name: "AES-GCM" },
+      false,
+      ["encrypt"]
+    );
+    const ciphertext = await window.crypto.subtle.encrypt(
+      { name: "AES-GCM", iv },
+      key,
+      plaintextBytes
+    );
+    // Prepend IV to ciphertext
+    const result = new Uint8Array(iv.length + ciphertext.byteLength);
+    result.set(iv);
+    result.set(new Uint8Array(ciphertext), iv.length);
+    return bytesToHex(result);
+  } else {
+    // Node.js
+    const crypto = await import("node:crypto");
+    const cipher = crypto.createCipheriv("aes-256-gcm", keyBytes, iv);
+    const encrypted = Buffer.concat([cipher.update(plaintextBytes), cipher.final()]);
+    const authTag = cipher.getAuthTag();
+    // Format: IV (12) + AuthTag (16) + Ciphertext
+    const result = new Uint8Array(iv.length + authTag.length + encrypted.length);
+    result.set(iv);
+    result.set(authTag, iv.length);
+    result.set(encrypted, iv.length + authTag.length);
+    return bytesToHex(result);
+  }
+}
+
+// --- Decrypt Message (AES-256-GCM) ---
+export async function decrypt(ciphertextHex, sharedSecretHex) {
+  try {
+    const ciphertextBytes = hexToBytes(ciphertextHex);
+    const keyBytes = hexToBytes(sharedSecretHex);
+
+    if (typeof window !== "undefined" && window.crypto) {
+      // Browser: IV (12) + Ciphertext+AuthTag
+      const iv = ciphertextBytes.slice(0, 12);
+      const data = ciphertextBytes.slice(12);
+      const key = await window.crypto.subtle.importKey(
+        "raw",
+        keyBytes,
+        { name: "AES-GCM" },
+        false,
+        ["decrypt"]
+      );
+      const decrypted = await window.crypto.subtle.decrypt(
+        { name: "AES-GCM", iv },
+        key,
+        data
+      );
+      const decoder = new TextDecoder();
+      return decoder.decode(decrypted);
+    } else {
+      // Node.js: IV (12) + AuthTag (16) + Ciphertext
+      const crypto = await import("node:crypto");
+      const iv = ciphertextBytes.slice(0, 12);
+      const authTag = ciphertextBytes.slice(12, 28);
+      const encrypted = ciphertextBytes.slice(28);
+      const decipher = crypto.createDecipheriv("aes-256-gcm", keyBytes, iv);
+      decipher.setAuthTag(authTag);
+      const decrypted = Buffer.concat([decipher.update(encrypted), decipher.final()]);
+      return decrypted.toString("utf8");
+    }
+  } catch {
+    return null;
+  }
+}
+
+// =============================================================================
+// GROUP KEY MANAGEMENT
+// =============================================================================
+
+// --- Create Group Key ---
+export async function createGroupKey() {
+  const keyBytes = await randomBytes(32);
+  return bytesToHex(keyBytes);
+}
+
+// --- Encrypt Group Key for a Member ---
+export async function encryptGroupKey(groupKeyHex, myPrivateKeyHex, memberPublicKeyHex) {
+  const sharedSecret = deriveSharedSecret(myPrivateKeyHex, memberPublicKeyHex);
+  return encrypt(groupKeyHex, sharedSecret);
+}
+
+// --- Decrypt Group Key from Admin ---
+export async function decryptGroupKey(encryptedGroupKeyHex, myPrivateKeyHex, adminPublicKeyHex) {
+  const sharedSecret = deriveSharedSecret(myPrivateKeyHex, adminPublicKeyHex);
+  return decrypt(encryptedGroupKeyHex, sharedSecret);
+}
+
+// --- Encrypt Message with Group Key ---
+export async function encryptWithGroupKey(plaintext, groupKeyHex) {
+  return encrypt(plaintext, groupKeyHex);
+}
+
+// --- Decrypt Message with Group Key ---
+export async function decryptWithGroupKey(ciphertextHex, groupKeyHex) {
+  return decrypt(ciphertextHex, groupKeyHex);
+}
