@@ -11,11 +11,6 @@ import {
   deriveSharedSecret,
   encrypt,
   decrypt,
-  createGroupKey,
-  encryptGroupKey,
-  decryptGroupKey,
-  encryptWithGroupKey,
-  decryptWithGroupKey,
 } from "./index.js";
 
 let passed = 0;
@@ -155,61 +150,42 @@ async function runTests() {
   assert(ciphertext !== ciphertext2, "encrypt() produces different ciphertext each time (random IV)");
 
   // ==========================================================================
-  // GROUP KEY MANAGEMENT
+  // GROUP ENCRYPTION (using primitives)
   // ==========================================================================
-  console.log("\n👥 Group Key Management\n");
-
-  const groupKey = await createGroupKey();
-  assert(groupKey.length === 64, "createGroupKey() returns 32-byte hex key");
-
-  const groupKey2 = await createGroupKey();
-  assert(groupKey !== groupKey2, "createGroupKey() generates unique keys");
-
-  // ==========================================================================
-  // GROUP KEY DISTRIBUTION
-  // ==========================================================================
-  console.log("\n📤 Group Key Distribution\n");
+  console.log("\n👥 Group Encryption (composed from primitives)\n");
 
   const admin = generateKeyPair();
   const member1 = generateKeyPair();
   const member2 = generateKeyPair();
 
-  const encryptedKeyForMember1 = await encryptGroupKey(groupKey, admin.privateKey, member1.publicKey);
-  const encryptedKeyForMember2 = await encryptGroupKey(groupKey, admin.privateKey, member2.publicKey);
+  // Create group key (just random 32 bytes)
+  const crypto = await import("node:crypto");
+  const groupKey = crypto.randomBytes(32).toString("hex");
+  assert(groupKey.length === 64, "Group key is 32-byte hex");
 
-  assert(encryptedKeyForMember1 !== encryptedKeyForMember2, "encryptGroupKey() produces different ciphertext per member");
+  // Distribute key to members using deriveSharedSecret + encrypt
+  const secret1 = deriveSharedSecret(admin.privateKey, member1.publicKey);
+  const secret2 = deriveSharedSecret(admin.privateKey, member2.publicKey);
+  const encryptedKeyForMember1 = await encrypt(groupKey, secret1);
+  const encryptedKeyForMember2 = await encrypt(groupKey, secret2);
 
-  const member1GroupKey = await decryptGroupKey(encryptedKeyForMember1, member1.privateKey, admin.publicKey);
-  const member2GroupKey = await decryptGroupKey(encryptedKeyForMember2, member2.privateKey, admin.publicKey);
+  // Members decrypt their group key
+  const member1Secret = deriveSharedSecret(member1.privateKey, admin.publicKey);
+  const member2Secret = deriveSharedSecret(member2.privateKey, admin.publicKey);
+  const member1GroupKey = await decrypt(encryptedKeyForMember1, member1Secret);
+  const member2GroupKey = await decrypt(encryptedKeyForMember2, member2Secret);
 
-  assert(member1GroupKey === groupKey, "decryptGroupKey() member1 recovers correct group key");
-  assert(member2GroupKey === groupKey, "decryptGroupKey() member2 recovers correct group key");
+  assert(member1GroupKey === groupKey, "Member 1 decrypts correct group key");
+  assert(member2GroupKey === groupKey, "Member 2 decrypts correct group key");
 
-  // Wrong member tries to decrypt
-  const wrongMemberDecrypt = await decryptGroupKey(encryptedKeyForMember1, member2.privateKey, admin.publicKey);
-  assert(wrongMemberDecrypt === null, "decryptGroupKey() returns null for wrong member");
+  // Group messaging (encrypt with group key directly)
+  const groupMessage = "Hello group!";
+  const encryptedGroupMsg = await encrypt(groupMessage, groupKey);
+  const decrypted1 = await decrypt(encryptedGroupMsg, member1GroupKey);
+  const decrypted2 = await decrypt(encryptedGroupMsg, member2GroupKey);
 
-  // ==========================================================================
-  // GROUP MESSAGING
-  // ==========================================================================
-  console.log("\n💬 Group Messaging\n");
-
-  const groupMessage = "Hello everyone in the group!";
-  const encryptedGroupMsg = await encryptWithGroupKey(groupMessage, groupKey);
-
-  assert(typeof encryptedGroupMsg === "string", "encryptWithGroupKey() returns ciphertext");
-
-  const decryptedByMember1 = await decryptWithGroupKey(encryptedGroupMsg, member1GroupKey);
-  const decryptedByMember2 = await decryptWithGroupKey(encryptedGroupMsg, member2GroupKey);
-
-  assert(decryptedByMember1 === groupMessage, "decryptWithGroupKey() member1 decrypts correctly");
-  assert(decryptedByMember2 === groupMessage, "decryptWithGroupKey() member2 decrypts correctly");
-
-  // Non-member cannot decrypt
-  const outsider = generateKeyPair();
-  const fakeKey = await createGroupKey(); // outsider guesses a key
-  const outsiderDecrypt = await decryptWithGroupKey(encryptedGroupMsg, fakeKey);
-  assert(outsiderDecrypt === null, "decryptWithGroupKey() outsider cannot decrypt");
+  assert(decrypted1 === groupMessage, "Member 1 decrypts group message");
+  assert(decrypted2 === groupMessage, "Member 2 decrypts group message");
 
   // ==========================================================================
   // SUMMARY

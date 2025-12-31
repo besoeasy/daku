@@ -8,15 +8,9 @@ import { generateAccountIdentifier } from "./username.js";
 secp.etc.hmacSha256Sync = (key, ...msgs) =>
   hmac(nobleSha256, key, secp.etc.concatBytes(...msgs));
 
-// Browser compatibility helper for TextEncoder
-async function getTextEncoder() {
-  if (typeof window !== "undefined") {
-    return new window.TextEncoder();
-  } else {
-    // Dynamic import for Node.js only
-    const util = await import("node:util");
-    return new util.TextEncoder();
-  }
+// TextEncoder is available globally in Node.js 11+ and all modern browsers
+function getTextEncoder() {
+  return new TextEncoder();
 }
 
 // Helper function to convert bytes to hex
@@ -89,7 +83,7 @@ export function getUsername(publicKey) {
 
 // --- Hashing (SHA-256) ---
 export async function sha256(msg) {
-  const encoder = await getTextEncoder();
+  const encoder = getTextEncoder();
   const encoded = encoder.encode(msg);
 
   if (typeof window === "undefined") {
@@ -285,7 +279,7 @@ export function deriveSharedSecret(myPrivateKeyHex, theirPublicKeyHex) {
 
 // --- Encrypt Message (AES-256-GCM) ---
 export async function encrypt(plaintext, sharedSecretHex) {
-  const encoder = await getTextEncoder();
+  const encoder = getTextEncoder();
   const plaintextBytes = encoder.encode(plaintext);
   const keyBytes = hexToBytes(sharedSecretHex);
   const iv = await randomBytes(12); // 96-bit IV for GCM
@@ -362,36 +356,4 @@ export async function decrypt(ciphertextHex, sharedSecretHex) {
   } catch {
     return null;
   }
-}
-
-// =============================================================================
-// GROUP KEY MANAGEMENT
-// =============================================================================
-
-// --- Create Group Key ---
-export async function createGroupKey() {
-  const keyBytes = await randomBytes(32);
-  return bytesToHex(keyBytes);
-}
-
-// --- Encrypt Group Key for a Member ---
-export async function encryptGroupKey(groupKeyHex, myPrivateKeyHex, memberPublicKeyHex) {
-  const sharedSecret = deriveSharedSecret(myPrivateKeyHex, memberPublicKeyHex);
-  return encrypt(groupKeyHex, sharedSecret);
-}
-
-// --- Decrypt Group Key from Admin ---
-export async function decryptGroupKey(encryptedGroupKeyHex, myPrivateKeyHex, adminPublicKeyHex) {
-  const sharedSecret = deriveSharedSecret(myPrivateKeyHex, adminPublicKeyHex);
-  return decrypt(encryptedGroupKeyHex, sharedSecret);
-}
-
-// --- Encrypt Message with Group Key ---
-export async function encryptWithGroupKey(plaintext, groupKeyHex) {
-  return encrypt(plaintext, groupKeyHex);
-}
-
-// --- Decrypt Message with Group Key ---
-export async function decryptWithGroupKey(ciphertextHex, groupKeyHex) {
-  return decrypt(ciphertextHex, groupKeyHex);
 }

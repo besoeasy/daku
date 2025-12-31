@@ -1,6 +1,6 @@
 {
   "name": "daku",
-  "version": "0.0.6",
+  "version": "0.1.0",
   "description": "Leave no trace. Just authenticate.",
   "homepage": "https://github.com/besoeasy/daku#readme",
   "keywords": [
@@ -44,6 +44,12 @@
   "author": "besoeasy",
   "type": "module",
   "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  },
+  "engines": {
+    "node": ">=16.0.0"
+  },
   "scripts": {
     "test": "node test.js"
   }
