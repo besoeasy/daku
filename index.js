@@ -124,19 +124,13 @@ export function getUsername(publicKey) {
 }
 
 // --- Hashing (SHA-256) ---
-export async function sha256(msg) {
+// Uses @noble/hashes/sha2 which works in all environments (Node.js, browser
+// secure and insecure contexts). Avoids window.crypto.subtle which is
+// undefined in insecure contexts (HTTP on non-localhost IPs).
+export function sha256(msg) {
   const encoder = getTextEncoder();
   const encoded = encoder.encode(msg);
-
-  if (typeof window === "undefined") {
-    // Node.js - dynamic import
-    const crypto = await import("node:crypto");
-    return new Uint8Array(crypto.createHash("sha256").update(encoded).digest());
-  } else {
-    // Browser
-    const hash = await window.crypto.subtle.digest("SHA-256", encoded);
-    return new Uint8Array(hash);
-  }
+  return Promise.resolve(nobleSha256(encoded));
 }
 
 // --- Proof of Work Helper ---
