@@ -20,6 +20,22 @@ function bytesToHex(bytes) {
   );
 }
 
+function seedToBytes(seed) {
+  if (seed instanceof Uint8Array) {
+    return seed;
+  }
+
+  if (ArrayBuffer.isView(seed)) {
+    return new Uint8Array(seed.buffer, seed.byteOffset, seed.byteLength);
+  }
+
+  if (seed instanceof ArrayBuffer) {
+    return new Uint8Array(seed);
+  }
+
+  return getTextEncoder().encode(String(seed));
+}
+
 // Helper function to convert hex to bytes
 function hexToBytes(hex) {
   return new Uint8Array(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
@@ -59,8 +75,24 @@ function base64Decode(str) {
 }
 
 // --- Key Generation ---
-export function generateKeyPair() {
-  const privateKey = secp.utils.randomPrivateKey();
+export function generateKeyPair(seed) {
+  let privateKey;
+
+  if (seed === undefined) {
+    privateKey = secp.utils.randomPrivateKey();
+  } else {
+    privateKey = nobleSha256(seedToBytes(seed));
+
+    while (true) {
+      try {
+        secp.getPublicKey(privateKey, true);
+        break;
+      } catch {
+        privateKey = nobleSha256(privateKey);
+      }
+    }
+  }
+
   const publicKey = secp.getPublicKey(privateKey, true);
 
   return {

@@ -43,6 +43,14 @@ async function runTests() {
   const bob = generateKeyPair();
   assert(alice.privateKey !== bob.privateKey, "generateKeyPair() generates unique keys");
 
+  const seededAlice1 = generateKeyPair("alice-seed");
+  const seededAlice2 = generateKeyPair("alice-seed");
+  assert(seededAlice1.privateKey === seededAlice2.privateKey, "generateKeyPair(seed) returns the same private key for the same seed");
+  assert(seededAlice1.publicKey === seededAlice2.publicKey, "generateKeyPair(seed) returns the same public key for the same seed");
+
+  const seededBob = generateKeyPair("bob-seed");
+  assert(seededAlice1.privateKey !== seededBob.privateKey, "generateKeyPair(seed) returns different private keys for different seeds");
+
   // ==========================================================================
   // GET PUBLIC KEY
   // ==========================================================================

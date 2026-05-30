@@ -41,7 +41,7 @@ const userId = await verifyAuth(token);  // Returns publicKey or null
 
 ### 🔑 Identity
 ```javascript
-generateKeyPair()              // Create new keypair identity
+generateKeyPair(seed?)         // Create new keypair identity, optionally deterministic
 getPublicKey(privateKey)       // Derive public key from private
 getUsername(publicKey)         // Human-readable name like "oceanrunning4523"
 ```
@@ -256,12 +256,14 @@ ws.onmessage = async (e) => {
 
 ## API Reference
 
-### `generateKeyPair()`
-Creates a new secp256k1 keypair.
+### `generateKeyPair(seed?)`
+Creates a new secp256k1 keypair. Pass a string or byte seed to derive the same keypair deterministically.
 ```javascript
 const { privateKey, publicKey } = generateKeyPair();
 // privateKey: 64-char hex (keep secret!)
 // publicKey: 66-char hex (share freely)
+
+const sameKeys = generateKeyPair("alice-seed");
 ```
 
 ### `getPublicKey(privateKey)`
