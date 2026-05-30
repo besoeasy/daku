@@ -36,6 +36,25 @@ function seedToBytes(seed) {
   return getTextEncoder().encode(String(seed));
 }
 
+function deriveSeededPrivateKey(seed) {
+  const seedBytes = seedToBytes(seed);
+  const rounds = Math.max(seedBytes.length, 1);
+  let privateKey = nobleSha256(seedBytes);
+
+  for (let i = 1; i < rounds; i++) {
+    privateKey = nobleSha256(privateKey);
+  }
+
+  while (true) {
+    try {
+      secp.getPublicKey(privateKey, true);
+      return privateKey;
+    } catch {
+      privateKey = nobleSha256(privateKey);
+    }
+  }
+}
+
 // Helper function to convert hex to bytes
 function hexToBytes(hex) {
   return new Uint8Array(hex.match(/.{1,2}/g).map((byte) => parseInt(byte, 16)));
@@ -81,16 +100,7 @@ export function generateKeyPair(seed) {
   if (seed === undefined) {
     privateKey = secp.utils.randomPrivateKey();
   } else {
-    privateKey = nobleSha256(seedToBytes(seed));
-
-    while (true) {
-      try {
-        secp.getPublicKey(privateKey, true);
-        break;
-      } catch {
-        privateKey = nobleSha256(privateKey);
-      }
-    }
+    privateKey = deriveSeededPrivateKey(seed);
   }
 
   const publicKey = secp.getPublicKey(privateKey, true);
