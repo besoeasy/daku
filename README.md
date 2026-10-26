@@ -1,5 +1,7 @@
 # DAKU
 
+[![Star History Rank](https://api.star-history.com/badge?repo=besoeasy/daku&type=rank)](https://www.star-history.com/besoeasy/daku)
+
 > **Anonymous authentication & encryption. Zero personal data. One library.**
 
 **DAKU** (Punjabi for "bandits") is a minimal cryptographic toolkit for building passwordless, privacy-first applications. No emails, no passwords, no databases of credentials to breach.
@@ -370,3 +372,8 @@ ISC © [besoeasy](https://github.com/besoeasy)
 <p align="center">
   <b>Leave no trace. Just authenticate.</b>
 </p>
+
+
+## Star History
+
+[![Star History Chart](https://api.star-history.com/chart?repos=besoeasy/daku&type=date&legend=top-left)](https://www.star-history.com/?repos=besoeasy%2Fdaku&type=date&legend=top-left)
